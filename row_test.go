@@ -1,5 +1,6 @@
 package freedb
 
+
 import (
 	"context"
 	"fmt"
@@ -28,7 +29,7 @@ func TestGoogleSheetRowStore_Integration(t *testing.T) {
 		t.Fatalf("error when instantiating google auth: %s", err)
 	}
 
-	db := NewGoogleSheetRowStore(
+	db := NewGoogleSheetRowStore[testPerson](
 		googleAuth,
 		spreadsheetID,
 		sheetName,
@@ -52,8 +53,9 @@ func TestGoogleSheetRowStore_Integration(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Nil type
-	err = db.Insert(nil).Exec(context.Background())
-	assert.NotNil(t, err)
+	// Old code, with generic it will never happen
+	// err = db.Insert(nil).Exec(context.Background())
+	// assert.NotNil(t, err)
 
 	err = db.Insert(testPerson{
 		Name: "name3",
@@ -101,7 +103,7 @@ func TestGoogleSheetRowStore_Integration_EdgeCases(t *testing.T) {
 		t.Fatalf("error when instantiating google auth: %s", err)
 	}
 
-	db := NewGoogleSheetRowStore(
+	db := NewGoogleSheetRowStore[testPerson](
 		googleAuth,
 		spreadsheetID,
 		sheetName,
@@ -112,13 +114,14 @@ func TestGoogleSheetRowStore_Integration_EdgeCases(t *testing.T) {
 		_ = db.Close(context.Background())
 	}()
 
+	// These will never happen
 	// Non-struct types
-	err = db.Insert([]interface{}{"name3", 12, "2001-01-01"}).Exec(context.Background())
-	assert.NotNil(t, err)
-
-	// IEEE 754 unsafe integer
-	err = db.Insert([]interface{}{"name3", 9007199254740993, "2001-01-01"}).Exec(context.Background())
-	assert.NotNil(t, err)
+	// err = db.Insert([]interface{}{"name3", 12, "2001-01-01"}).Exec(context.Background())
+	// assert.NotNil(t, err)
+	//
+	// // IEEE 754 unsafe integer
+	// err = db.Insert([]interface{}{"name3", 9007199254740993, "2001-01-01"}).Exec(context.Background())
+	// assert.NotNil(t, err)
 
 	// IEEE 754 unsafe integer
 	err = db.Insert(

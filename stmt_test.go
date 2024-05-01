@@ -185,7 +185,7 @@ func TestGenerateQuery(t *testing.T) {
 }
 
 func TestSelectStmt_AllColumns(t *testing.T) {
-	store := &GoogleSheetRowStore{
+	store := &GoogleSheetRowStore[testPerson]{
 		colsMapping: colsMapping{rowIdxCol: {"A", 0}, "col1": {"B", 1}, "col2": {"C", 2}},
 		config:      GoogleSheetRowStoreConfig{Columns: []string{"col1", "col2"}},
 	}
@@ -199,7 +199,7 @@ func TestSelectStmt_AllColumns(t *testing.T) {
 func TestSelectStmt_Exec(t *testing.T) {
 	t.Run("non_slice_output", func(t *testing.T) {
 		wrapper := &sheets.MockWrapper{}
-		store := &GoogleSheetRowStore{
+		store := &GoogleSheetRowStore[testPerson]{
 			wrapper:     wrapper,
 			colsMapping: map[string]colIdx{rowIdxCol: {"A", 0}, "col1": {"B", 1}, "col2": {"C", 2}},
 		}
@@ -211,7 +211,7 @@ func TestSelectStmt_Exec(t *testing.T) {
 
 	t.Run("non_pointer_to_slice_output", func(t *testing.T) {
 		wrapper := &sheets.MockWrapper{}
-		store := &GoogleSheetRowStore{
+		store := &GoogleSheetRowStore[testPerson]{
 			wrapper:     wrapper,
 			colsMapping: map[string]colIdx{rowIdxCol: {"A", 0}, "col1": {"B", 1}, "col2": {"C", 2}},
 		}
@@ -223,7 +223,7 @@ func TestSelectStmt_Exec(t *testing.T) {
 
 	t.Run("nil_output", func(t *testing.T) {
 		wrapper := &sheets.MockWrapper{}
-		store := &GoogleSheetRowStore{
+		store := &GoogleSheetRowStore[testPerson]{
 			wrapper:     wrapper,
 			colsMapping: map[string]colIdx{rowIdxCol: {"A", 0}, "col1": {"B", 1}, "col2": {"C", 2}},
 		}
@@ -234,7 +234,7 @@ func TestSelectStmt_Exec(t *testing.T) {
 
 	t.Run("has_query_error", func(t *testing.T) {
 		wrapper := &sheets.MockWrapper{QueryRowsError: errors.New("some error")}
-		store := &GoogleSheetRowStore{
+		store := &GoogleSheetRowStore[testPerson]{
 			wrapper:     wrapper,
 			colsMapping: map[string]colIdx{rowIdxCol: {"A", 0}, "col1": {"B", 1}, "col2": {"C", 2}},
 		}
@@ -250,7 +250,7 @@ func TestSelectStmt_Exec(t *testing.T) {
 			{10, "17-01-2001"},
 			{11, "18-01-2000"},
 		}}}
-		store := &GoogleSheetRowStore{
+		store := &GoogleSheetRowStore[testPerson]{
 			wrapper:     wrapper,
 			colsMapping: map[string]colIdx{rowIdxCol: {"A", 0}, "name": {"B", 1}, "age": {"C", 2}, "dob": {"D", 3}},
 			config: GoogleSheetRowStoreConfig{
@@ -275,7 +275,7 @@ func TestSelectStmt_Exec(t *testing.T) {
 			{"name1", 10, "17-01-2001"},
 			{"name2", 11, "18-01-2000"},
 		}}}
-		store := &GoogleSheetRowStore{
+		store := &GoogleSheetRowStore[testPerson]{
 			wrapper:     wrapper,
 			colsMapping: map[string]colIdx{rowIdxCol: {"A", 0}, "name": {"B", 1}, "age": {"C", 2}, "dob": {"D", 3}},
 			config: GoogleSheetRowStoreConfig{
@@ -298,7 +298,7 @@ func TestSelectStmt_Exec(t *testing.T) {
 
 func TestGoogleSheetInsertStmt_convertRowToSlice(t *testing.T) {
 	wrapper := &sheets.MockWrapper{}
-	store := &GoogleSheetRowStore{
+	store := &GoogleSheetRowStore[testPerson]{
 		wrapper:     wrapper,
 		colsMapping: map[string]colIdx{rowIdxCol: {"A", 0}, "name": {"B", 1}, "age": {"C", 2}, "dob": {"D", 3}},
 		config: GoogleSheetRowStoreConfig{
@@ -365,7 +365,7 @@ func TestGoogleSheetInsertStmt_convertRowToSlice(t *testing.T) {
 
 func TestGoogleSheetUpdateStmt_generateBatchUpdateRequests(t *testing.T) {
 	wrapper := &sheets.MockWrapper{}
-	store := &GoogleSheetRowStore{
+	store := &GoogleSheetRowStore[testPerson]{
 		wrapper:     wrapper,
 		sheetName:   "sheet1",
 		colsMapping: map[string]colIdx{rowIdxCol: {"A", 0}, "name": {"B", 1}, "age": {"C", 2}, "dob": {"D", 3}},

@@ -29,7 +29,7 @@ func (c GoogleSheetRowStoreConfig) validate() error {
 }
 
 // GoogleSheetRowStore encapsulates row store functionality on top of a Google Sheet.
-type GoogleSheetRowStore struct {
+type GoogleSheetRowStore[T any] struct {
 	wrapper       sheetsWrapper
 	spreadsheetID string
 	sheetName     string
@@ -50,15 +50,15 @@ type GoogleSheetRowStore struct {
 // If you are providing a slice of structs into the "output" parameter and you want to define the mapping between the
 // column name with the field name, you should add a "db" struct tag.
 //
-//     // Without the `db` struct tag, the column name used will be "Name" and "Age".
-//     type Person struct {
-//         Name string `db:"name"`
-//         Age int `db:"age"`
-//     }
+//	// Without the `db` struct tag, the column name used will be "Name" and "Age".
+//	type Person struct {
+//	    Name string `db:"name"`
+//	    Age int `db:"age"`
+//	}
 //
 // Please note that calling Select() does not execute the query yet.
 // Call GoogleSheetSelectStmt.Exec to actually execute the query.
-func (s *GoogleSheetRowStore) Select(output interface{}, columns ...string) *GoogleSheetSelectStmt {
+func (s *GoogleSheetRowStore[T]) Select(output *[]T, columns ...string) *GoogleSheetSelectStmt[T] {
 	return newGoogleSheetSelectStmt(s, output, columns)
 }
 
@@ -73,7 +73,7 @@ func (s *GoogleSheetRowStore) Select(output interface{}, columns ...string) *Goo
 //
 // Please note that calling Insert() does not execute the insertion yet.
 // Call GoogleSheetInsertStmt.Exec() to actually execute the insertion.
-func (s *GoogleSheetRowStore) Insert(rows ...interface{}) *GoogleSheetInsertStmt {
+func (s *GoogleSheetRowStore[T]) Insert(rows ...T) *GoogleSheetInsertStmt[T] {
 	return newGoogleSheetInsertStmt(s, rows)
 }
 
@@ -82,7 +82,7 @@ func (s *GoogleSheetRowStore) Insert(rows ...interface{}) *GoogleSheetInsertStmt
 // The "colToValue" parameter specifies what value should be updated for which column.
 // Each value in the map[string]interface{} is going to be JSON marshalled.
 // If "colToValue" is empty, an error will be returned when GoogleSheetUpdateStmt.Exec() is called.
-func (s *GoogleSheetRowStore) Update(colToValue map[string]interface{}) *GoogleSheetUpdateStmt {
+func (s *GoogleSheetRowStore[T]) Update(colToValue map[string]interface{}) *GoogleSheetUpdateStmt[T] {
 	return newGoogleSheetUpdateStmt(s, colToValue)
 }
 
@@ -90,7 +90,7 @@ func (s *GoogleSheetRowStore) Update(colToValue map[string]interface{}) *GoogleS
 //
 // Please note that calling Delete() does not execute the deletion yet.
 // Call GoogleSheetDeleteStmt.Exec() to actually execute the deletion.
-func (s *GoogleSheetRowStore) Delete() *GoogleSheetDeleteStmt {
+func (s *GoogleSheetRowStore[T]) Delete() *GoogleSheetDeleteStmt[T] {
 	return newGoogleSheetDeleteStmt(s)
 }
 
@@ -98,16 +98,16 @@ func (s *GoogleSheetRowStore) Delete() *GoogleSheetDeleteStmt {
 //
 // Please note that calling Count() does not execute the query yet.
 // Call GoogleSheetCountStmt.Exec() to actually execute the query.
-func (s *GoogleSheetRowStore) Count() *GoogleSheetCountStmt {
+func (s *GoogleSheetRowStore[T]) Count() *GoogleSheetCountStmt[T] {
 	return newGoogleSheetCountStmt(s)
 }
 
 // Close cleans up all held resources if any.
-func (s *GoogleSheetRowStore) Close(_ context.Context) error {
+func (s *GoogleSheetRowStore[T]) Close(_ context.Context) error {
 	return nil
 }
 
-func (s *GoogleSheetRowStore) ensureHeaders() error {
+func (s *GoogleSheetRowStore[T]) ensureHeaders() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
@@ -137,12 +137,12 @@ func (s *GoogleSheetRowStore) ensureHeaders() error {
 
 // NewGoogleSheetRowStore creates an instance of the row based store with the given configuration.
 // It will also try to create the sheet, in case it does not exist yet.
-func NewGoogleSheetRowStore(
+func NewGoogleSheetRowStore[T any](
 	auth sheets.AuthClient,
 	spreadsheetID string,
 	sheetName string,
 	config GoogleSheetRowStoreConfig,
-) *GoogleSheetRowStore {
+) *GoogleSheetRowStore[T] {
 	if err := config.validate(); err != nil {
 		panic(err)
 	}
@@ -154,7 +154,7 @@ func NewGoogleSheetRowStore(
 
 	config = injectTimestampCol(config)
 
-	store := &GoogleSheetRowStore{
+	store := &GoogleSheetRowStore[T]{
 		wrapper:       wrapper,
 		spreadsheetID: spreadsheetID,
 		sheetName:     sheetName,
