@@ -237,8 +237,8 @@ func newQueryBuilder(
 }
 
 // GoogleSheetSelectStmt encapsulates information required to query the row store.
-type GoogleSheetSelectStmt struct {
-	store        *GoogleSheetRowStore
+type GoogleSheetSelectStmt[T any] struct {
+	store        *GoogleSheetRowStore[T]
 	columns      []string
 	queryBuilder *queryBuilder
 	output       interface{}
@@ -257,7 +257,7 @@ type GoogleSheetSelectStmt struct {
 //
 // All conditions supported by Google Sheet "QUERY" function are supported by this library.
 // You can read the full information in https://developers.google.com/chart/interactive/docs/querylanguage#where.
-func (s *GoogleSheetSelectStmt) Where(condition string, args ...interface{}) *GoogleSheetSelectStmt {
+func (s *GoogleSheetSelectStmt[T]) Where(condition string, args ...interface{}) *GoogleSheetSelectStmt[T] {
 	s.queryBuilder.Where(condition, args...)
 	return s
 }
@@ -265,7 +265,7 @@ func (s *GoogleSheetSelectStmt) Where(condition string, args ...interface{}) *Go
 // OrderBy specifies the column ordering.
 //
 // The default value is no ordering specified.
-func (s *GoogleSheetSelectStmt) OrderBy(ordering []ColumnOrderBy) *GoogleSheetSelectStmt {
+func (s *GoogleSheetSelectStmt[T]) OrderBy(ordering []ColumnOrderBy) *GoogleSheetSelectStmt[T] {
 	s.queryBuilder.OrderBy(ordering)
 	return s
 }
@@ -273,7 +273,7 @@ func (s *GoogleSheetSelectStmt) OrderBy(ordering []ColumnOrderBy) *GoogleSheetSe
 // Limit specifies the number of rows to retrieve.
 //
 // The default value is 0.
-func (s *GoogleSheetSelectStmt) Limit(limit uint64) *GoogleSheetSelectStmt {
+func (s *GoogleSheetSelectStmt[T]) Limit(limit uint64) *GoogleSheetSelectStmt[T] {
 	s.queryBuilder.Limit(limit)
 	return s
 }
@@ -281,7 +281,7 @@ func (s *GoogleSheetSelectStmt) Limit(limit uint64) *GoogleSheetSelectStmt {
 // Offset specifies the number of rows to skip before starting to include the rows.
 //
 // The default value is 0.
-func (s *GoogleSheetSelectStmt) Offset(offset uint64) *GoogleSheetSelectStmt {
+func (s *GoogleSheetSelectStmt[T]) Offset(offset uint64) *GoogleSheetSelectStmt[T] {
 	s.queryBuilder.Offset(offset)
 	return s
 }
@@ -289,7 +289,7 @@ func (s *GoogleSheetSelectStmt) Offset(offset uint64) *GoogleSheetSelectStmt {
 // Exec retrieves rows matching with the given condition.
 //
 // There is only 1 API call behind the scene.
-func (s *GoogleSheetSelectStmt) Exec(ctx context.Context) error {
+func (s *GoogleSheetSelectStmt[T]) Exec(ctx context.Context) error {
 	if err := s.ensureOutputSlice(); err != nil {
 		return err
 	}
@@ -314,7 +314,7 @@ func (s *GoogleSheetSelectStmt) Exec(ctx context.Context) error {
 	return mapstructureDecode(m, s.output)
 }
 
-func (s *GoogleSheetSelectStmt) buildQueryResultMap(original sheets.QueryRowsResult) []map[string]interface{} {
+func (s *GoogleSheetSelectStmt[T]) buildQueryResultMap(original sheets.QueryRowsResult) []map[string]interface{} {
 	result := make([]map[string]interface{}, len(original.Rows))
 
 	for rowIdx, row := range original.Rows {
@@ -329,7 +329,7 @@ func (s *GoogleSheetSelectStmt) buildQueryResultMap(original sheets.QueryRowsRes
 	return result
 }
 
-func (s *GoogleSheetSelectStmt) ensureOutputSlice() error {
+func (s *GoogleSheetSelectStmt[T]) ensureOutputSlice() error {
 	// Passing an uninitialised slice will not compare to nil due to this: https://yourbasic.org/golang/gotcha-why-nil-error-not-equal-nil/
 	// Only if passing an untyped `nil` will compare to the `nil` in the line below.
 	// Observations as below:
@@ -357,12 +357,12 @@ func (s *GoogleSheetSelectStmt) ensureOutputSlice() error {
 	return nil
 }
 
-func newGoogleSheetSelectStmt(store *GoogleSheetRowStore, output interface{}, columns []string) *GoogleSheetSelectStmt {
+func newGoogleSheetSelectStmt[T any](store *GoogleSheetRowStore[T], output interface{}, columns []string) *GoogleSheetSelectStmt[T] {
 	if len(columns) == 0 {
 		columns = store.config.Columns
 	}
 
-	return &GoogleSheetSelectStmt{
+	return &GoogleSheetSelectStmt[T]{
 		store:        store,
 		columns:      columns,
 		queryBuilder: newQueryBuilder(store.colsMapping.NameMap(), ridWhereClauseInterceptor, columns),
@@ -371,12 +371,12 @@ func newGoogleSheetSelectStmt(store *GoogleSheetRowStore, output interface{}, co
 }
 
 // GoogleSheetInsertStmt encapsulates information required to insert new rows into the Google Sheet.
-type GoogleSheetInsertStmt struct {
-	store *GoogleSheetRowStore
-	rows  []interface{}
+type GoogleSheetInsertStmt[T any] struct {
+	store *GoogleSheetRowStore[T]
+	rows  []T
 }
 
-func (s *GoogleSheetInsertStmt) convertRowToSlice(row interface{}) ([]interface{}, error) {
+func (s *GoogleSheetInsertStmt[T]) convertRowToSlice(row interface{}) ([]interface{}, error) {
 	if row == nil {
 		return nil, errors.New("row type must not be nil")
 	}
@@ -414,7 +414,7 @@ func (s *GoogleSheetInsertStmt) convertRowToSlice(row interface{}) ([]interface{
 // This method calls the relevant Google Sheet APIs to actually insert the new rows.
 //
 // There is only 1 API call behind the scene.
-func (s *GoogleSheetInsertStmt) Exec(ctx context.Context) error {
+func (s *GoogleSheetInsertStmt[T]) Exec(ctx context.Context) error {
 	if len(s.rows) == 0 {
 		return nil
 	}
@@ -437,16 +437,16 @@ func (s *GoogleSheetInsertStmt) Exec(ctx context.Context) error {
 	return err
 }
 
-func newGoogleSheetInsertStmt(store *GoogleSheetRowStore, rows []interface{}) *GoogleSheetInsertStmt {
-	return &GoogleSheetInsertStmt{
+func newGoogleSheetInsertStmt[T any](store *GoogleSheetRowStore[T], rows []T) *GoogleSheetInsertStmt[T] {
+	return &GoogleSheetInsertStmt[T]{
 		store: store,
 		rows:  rows,
 	}
 }
 
 // GoogleSheetUpdateStmt encapsulates information required to update rows.
-type GoogleSheetUpdateStmt struct {
-	store        *GoogleSheetRowStore
+type GoogleSheetUpdateStmt[T any] struct {
+	store        *GoogleSheetRowStore[T]
 	colToValue   map[string]interface{}
 	queryBuilder *queryBuilder
 }
@@ -455,7 +455,7 @@ type GoogleSheetUpdateStmt struct {
 //
 // It works just like the GoogleSheetSelectStmt.Where() method.
 // Please read GoogleSheetSelectStmt.Where() for more details.
-func (s *GoogleSheetUpdateStmt) Where(condition string, args ...interface{}) *GoogleSheetUpdateStmt {
+func (s *GoogleSheetUpdateStmt[T]) Where(condition string, args ...interface{}) *GoogleSheetUpdateStmt[T] {
 	s.queryBuilder.Where(condition, args...)
 	return s
 }
@@ -463,7 +463,7 @@ func (s *GoogleSheetUpdateStmt) Where(condition string, args ...interface{}) *Go
 // Exec updates rows matching the condition with the new values for affected columns.
 //
 // There are 2 API calls behind the scene.
-func (s *GoogleSheetUpdateStmt) Exec(ctx context.Context) error {
+func (s *GoogleSheetUpdateStmt[T]) Exec(ctx context.Context) error {
 	if len(s.colToValue) == 0 {
 		return errors.New("empty colToValue, at least one column must be updated")
 	}
@@ -490,7 +490,7 @@ func (s *GoogleSheetUpdateStmt) Exec(ctx context.Context) error {
 	return err
 }
 
-func (s *GoogleSheetUpdateStmt) generateBatchUpdateRequests(rowIndices []int64) ([]sheets.BatchUpdateRowsRequest, error) {
+func (s *GoogleSheetUpdateStmt[T]) generateBatchUpdateRequests(rowIndices []int64) ([]sheets.BatchUpdateRowsRequest, error) {
 	requests := make([]sheets.BatchUpdateRowsRequest, 0)
 
 	for col, value := range s.colToValue {
@@ -516,8 +516,8 @@ func (s *GoogleSheetUpdateStmt) generateBatchUpdateRequests(rowIndices []int64) 
 	return requests, nil
 }
 
-func newGoogleSheetUpdateStmt(store *GoogleSheetRowStore, colToValue map[string]interface{}) *GoogleSheetUpdateStmt {
-	return &GoogleSheetUpdateStmt{
+func newGoogleSheetUpdateStmt[T any](store *GoogleSheetRowStore[T], colToValue map[string]interface{}) *GoogleSheetUpdateStmt[T] {
+	return &GoogleSheetUpdateStmt[T]{
 		store:        store,
 		colToValue:   colToValue,
 		queryBuilder: newQueryBuilder(store.colsMapping.NameMap(), ridWhereClauseInterceptor, []string{rowIdxCol}),
@@ -525,8 +525,8 @@ func newGoogleSheetUpdateStmt(store *GoogleSheetRowStore, colToValue map[string]
 }
 
 // GoogleSheetDeleteStmt encapsulates information required to delete rows.
-type GoogleSheetDeleteStmt struct {
-	store        *GoogleSheetRowStore
+type GoogleSheetDeleteStmt[T any] struct {
+	store        *GoogleSheetRowStore[T]
 	queryBuilder *queryBuilder
 }
 
@@ -534,7 +534,7 @@ type GoogleSheetDeleteStmt struct {
 //
 // It works just like the GoogleSheetSelectStmt.Where() method.
 // Please read GoogleSheetSelectStmt.Where() for more details.
-func (s *GoogleSheetDeleteStmt) Where(condition string, args ...interface{}) *GoogleSheetDeleteStmt {
+func (s *GoogleSheetDeleteStmt[T]) Where(condition string, args ...interface{}) *GoogleSheetDeleteStmt[T] {
 	s.queryBuilder.Where(condition, args...)
 	return s
 }
@@ -542,7 +542,7 @@ func (s *GoogleSheetDeleteStmt) Where(condition string, args ...interface{}) *Go
 // Exec deletes rows matching the condition.
 //
 // There are 2 API calls behind the scene.
-func (s *GoogleSheetDeleteStmt) Exec(ctx context.Context) error {
+func (s *GoogleSheetDeleteStmt[T]) Exec(ctx context.Context) error {
 	selectStmt, err := s.queryBuilder.Generate()
 	if err != nil {
 		return err
@@ -560,16 +560,16 @@ func (s *GoogleSheetDeleteStmt) Exec(ctx context.Context) error {
 	return err
 }
 
-func newGoogleSheetDeleteStmt(store *GoogleSheetRowStore) *GoogleSheetDeleteStmt {
-	return &GoogleSheetDeleteStmt{
+func newGoogleSheetDeleteStmt[T any](store *GoogleSheetRowStore[T]) *GoogleSheetDeleteStmt[T] {
+	return &GoogleSheetDeleteStmt[T]{
 		store:        store,
 		queryBuilder: newQueryBuilder(store.colsMapping.NameMap(), ridWhereClauseInterceptor, []string{rowIdxCol}),
 	}
 }
 
 // GoogleSheetCountStmt encapsulates information required to count the number of rows matching some conditions.
-type GoogleSheetCountStmt struct {
-	store        *GoogleSheetRowStore
+type GoogleSheetCountStmt[T any] struct {
+	store        *GoogleSheetRowStore[T]
 	queryBuilder *queryBuilder
 }
 
@@ -577,7 +577,7 @@ type GoogleSheetCountStmt struct {
 //
 // It works just like the GoogleSheetSelectStmt.Where() method.
 // Please read GoogleSheetSelectStmt.Where() for more details.
-func (s *GoogleSheetCountStmt) Where(condition string, args ...interface{}) *GoogleSheetCountStmt {
+func (s *GoogleSheetCountStmt[T]) Where(condition string, args ...interface{}) *GoogleSheetCountStmt[T] {
 	s.queryBuilder.Where(condition, args...)
 	return s
 }
@@ -585,7 +585,7 @@ func (s *GoogleSheetCountStmt) Where(condition string, args ...interface{}) *Goo
 // Exec counts the number of rows matching the provided condition.
 //
 // There is only 1 API call behind the scene.
-func (s *GoogleSheetCountStmt) Exec(ctx context.Context) (uint64, error) {
+func (s *GoogleSheetCountStmt[T]) Exec(ctx context.Context) (uint64, error) {
 	selectStmt, err := s.queryBuilder.Generate()
 	if err != nil {
 		return 0, err
@@ -604,15 +604,15 @@ func (s *GoogleSheetCountStmt) Exec(ctx context.Context) (uint64, error) {
 	return uint64(count), nil
 }
 
-func newGoogleSheetCountStmt(store *GoogleSheetRowStore) *GoogleSheetCountStmt {
+func newGoogleSheetCountStmt[T any](store *GoogleSheetRowStore[T]) *GoogleSheetCountStmt[T] {
 	countClause := fmt.Sprintf("COUNT(%s)", rowIdxCol)
-	return &GoogleSheetCountStmt{
+	return &GoogleSheetCountStmt[T]{
 		store:        store,
 		queryBuilder: newQueryBuilder(store.colsMapping.NameMap(), ridWhereClauseInterceptor, []string{countClause}),
 	}
 }
 
-func getRowIndices(ctx context.Context, store *GoogleSheetRowStore, selectStmt string) ([]int64, error) {
+func getRowIndices[T any](ctx context.Context, store *GoogleSheetRowStore[T], selectStmt string) ([]int64, error) {
 	result, err := store.wrapper.QueryRows(ctx, store.spreadsheetID, store.sheetName, selectStmt, true)
 	if err != nil {
 		return nil, err

@@ -1,6 +1,6 @@
 module github.com/FreeLeh/GoFreeDB
 
-go 1.18
+go 1.20
 
 require (
 	github.com/mitchellh/mapstructure v1.5.0
